@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.4";
+const APP_VERSION = "1.0.5";
 console.log(`[BannedWords] App Version: ${APP_VERSION}`);
 
 // In game.js (after DOMContentLoaded)
@@ -650,18 +650,33 @@ Example format for English:
   }
 
   async callDeepSeek(prompt) {
-    const response = await fetch("/api/deepseek", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
-    });
+    try {
+      // Add timeout handling
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000); // 10-second timeout
 
-    if (!response.ok) {
-      throw new Error("Failed to fetch word");
+      const response = await fetch("/api/deepseek", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`API error: ${response.status} - ${errorText}`);
+      }
+
+      const data = await response.json();
+      return data.result;
+    } catch (error) {
+      if (error.name === "AbortError") {
+        throw new Error("API request timed out");
+      }
+      throw error;
     }
-
-    const data = await response.json();
-    return data.result;
   }
 
   parseAIResponse(content) {
