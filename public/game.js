@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.3";
+const APP_VERSION = "1.0.4";
 console.log(`[BannedWords] App Version: ${APP_VERSION}`);
 
 // In game.js (after DOMContentLoaded)
