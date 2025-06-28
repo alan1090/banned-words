@@ -1,13 +1,5 @@
-const APP_VERSION = "1.0.7";
+const APP_VERSION = "1.2.0";
 console.log(`[BannedWords] App Version: ${APP_VERSION}`);
-
-// In game.js (after DOMContentLoaded)
-document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById(
-    "versionInfo"
-  ).textContent = `Version: ${APP_VERSION}`;
-  new AIBannedWordsGame();
-});
 
 class AIBannedWordsGame {
   constructor() {
@@ -29,6 +21,10 @@ class AIBannedWordsGame {
       difficulty: "medium",
       language: "english",
       gameActive: false,
+      currentTurn: 0,
+      roundEnded: false,
+      skipsPerRound: 3, // Default value
+      currentSkips: 0, // Current skips remaining
     };
 
     this.screens = {
@@ -40,7 +36,6 @@ class AIBannedWordsGame {
     };
 
     this.elements = {
-      // Buttons
       startGame: document.getElementById("startGameButton"),
       settingsForm: document.getElementById("settingsForm"),
       playersForm: document.getElementById("playersForm"),
@@ -53,8 +48,6 @@ class AIBannedWordsGame {
       newGame: document.getElementById("newGameButton"),
       resume: document.getElementById("resumeButton"),
       quit: document.getElementById("quitButton"),
-
-      // Displays
       wordDisplay: document.getElementById("wordDisplay"),
       tabooWords: document.getElementById("tabooWords"),
       timerDisplay: document.getElementById("timerDisplay"),
@@ -64,19 +57,17 @@ class AIBannedWordsGame {
       roundDisplay: document.getElementById("roundDisplay"),
       podium: document.getElementById("podium"),
       finalScores: document.getElementById("finalScores"),
-
-      // Modal
       pauseModal: document.getElementById("pauseModal"),
-
-      // Form inputs
       numberOfPlayers: document.getElementById("numberOfPlayers"),
       numberOfRounds: document.getElementById("numberOfRounds"),
       category: document.getElementById("category"),
       difficulty: document.getElementById("difficulty"),
       language: document.getElementById("language"),
+      timePerRound: document.getElementById("timePerRound"),
+      skipsPerRound: document.getElementById("skipsPerRound"),
+      skipsCounter: document.getElementById("skipsCounter"),
     };
 
-    // Wait for DOM to be fully loaded before initializing
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", () => {
         this.initializeEventListeners();
@@ -89,7 +80,6 @@ class AIBannedWordsGame {
   }
 
   initializeEventListeners() {
-    // Check if elements exist before adding listeners
     if (this.elements.startGame) {
       this.elements.startGame.addEventListener("click", () =>
         this.showScreen("settings")
@@ -108,7 +98,6 @@ class AIBannedWordsGame {
       );
     }
 
-    // Game controls
     if (this.elements.correctButton) {
       this.elements.correctButton.addEventListener("click", () =>
         this.handleCorrectGuess()
@@ -137,7 +126,6 @@ class AIBannedWordsGame {
       this.elements.endGame.addEventListener("click", () => this.endGame());
     }
 
-    // Results
     if (this.elements.playAgain) {
       this.elements.playAgain.addEventListener("click", () => this.playAgain());
     }
@@ -146,16 +134,40 @@ class AIBannedWordsGame {
       this.elements.newGame.addEventListener("click", () => this.newGame());
     }
 
-    // Modal
     if (this.elements.resume) {
       this.elements.resume.addEventListener("click", () => this.togglePause());
     }
 
     if (this.elements.quit) {
-      this.elements.quit.addEventListener("click", () => this.endGame());
+      this.elements.quit.addEventListener("click", () => {
+        pauseModal.classList.add("hidden");
+        this.endGame();
+      });
     }
 
-    // Keyboard shortcuts
+    // Time option buttons
+    document.querySelectorAll(".time-option").forEach((option) => {
+      option.addEventListener("click", () => {
+        document
+          .querySelectorAll(".time-option")
+          .forEach((opt) => opt.classList.remove("active"));
+        option.classList.add("active");
+        const time = parseInt(option.dataset.time);
+        this.elements.timePerRound.value = time;
+      });
+    });
+
+    document.querySelectorAll(".skip-option").forEach((option) => {
+      option.addEventListener("click", () => {
+        document
+          .querySelectorAll(".skip-option")
+          .forEach((opt) => opt.classList.remove("active"));
+        option.classList.add("active");
+        const skips = parseInt(option.dataset.skips);
+        this.elements.skipsPerRound.value = skips;
+      });
+    });
+
     document.addEventListener("keydown", (e) => this.handleKeyPress(e));
   }
 
@@ -183,13 +195,11 @@ class AIBannedWordsGame {
   }
 
   showScreen(screenName) {
-    // Hide all screens
     Object.values(this.screens).forEach((screen) => {
       screen.classList.remove("active");
       screen.classList.add("hidden");
     });
 
-    // Show the requested screen
     if (this.screens[screenName]) {
       this.screens[screenName].classList.remove("hidden");
       this.screens[screenName].classList.add("active");
@@ -208,6 +218,17 @@ class AIBannedWordsGame {
     this.gameState.category = this.elements.category.value;
     this.gameState.difficulty = this.elements.difficulty.value;
     this.gameState.language = this.elements.language.value;
+    this.gameState.totalTime =
+      Number.parseInt(this.elements.timePerRound.value) || 60;
+    this.gameState.timeLeft = this.gameState.totalTime;
+
+    // FIX: Properly handle 0 value for skips
+    const skipsValue = parseInt(this.elements.skipsPerRound.value);
+    this.gameState.skipsPerRound = isNaN(skipsValue) ? 3 : skipsValue;
+
+    if (this.gameState.skipsPerRound === 10) {
+      this.gameState.skipsPerRound = Infinity;
+    }
 
     this.createPlayerForm(numberOfPlayers);
     this.showScreen("players");
@@ -237,7 +258,8 @@ class AIBannedWordsGame {
     const submitButton = document.createElement("button");
     submitButton.className = "btn btn-primary btn-large";
     submitButton.type = "submit";
-    submitButton.innerHTML = '<span class="btn-icon">🎮</span>Start Playing!';
+    submitButton.innerHTML =
+      '<i class="fas fa-gamepad btn-icon"></i>Start Playing!';
 
     this.elements.playersForm.appendChild(submitButton);
   }
@@ -259,6 +281,8 @@ class AIBannedWordsGame {
     this.gameState.gameActive = true;
     this.gameState.currentRound = 0;
     this.gameState.currentPlayerIndex = -1;
+    this.gameState.currentTurn = 0;
+    this.gameState.wordsUsed = new Set();
 
     this.showScreen("game");
     this.updatePlayersDisplay();
@@ -267,298 +291,16 @@ class AIBannedWordsGame {
 
   async startNextRound() {
     this.gameState.currentRound++;
-    this.gameState.currentPlayerIndex =
-      (this.gameState.currentPlayerIndex + 1) % this.gameState.players.length;
+    this.gameState.currentTurn = 0;
 
     if (this.gameState.currentRound > this.gameState.totalRounds) {
       this.endGame();
       return;
     }
 
-    // Update UI
-    this.elements.roundDisplay.textContent = `Round ${this.gameState.currentRound} of ${this.gameState.totalRounds}`;
-    this.elements.currentPlayerName.textContent =
-      this.gameState.players[this.gameState.currentPlayerIndex];
-
-    // Reset controls
-    this.elements.correctButton.disabled = false;
-    this.elements.passButton.disabled = false;
-    this.elements.pauseButton.disabled = false;
-    document.getElementById("roundControls").classList.add("hidden");
-
-    // Reset timer
-    this.gameState.timeLeft = this.gameState.totalTime;
-    this.updateTimerDisplay();
-
-    this.updatePlayersDisplay();
-    await this.generateNewWord();
-    this.startTimer();
-  }
-
-  async generateNewWord() {
-    this.gameState.isGeneratingWord = true;
-    this.showLoadingState();
-
-    try {
-      const wordData = await this.fetchWordFromAI();
-      this.gameState.currentWord = wordData.guess;
-      this.gameState.tabooWords = wordData.taboo;
-      this.gameState.wordsUsed.add(wordData.guess);
-
-      this.displayWord();
-    } catch (error) {
-      console.error("Failed to generate word:", error);
-      this.showError(`Failed to generate word: ${error.message}`);
-    } finally {
-      this.gameState.isGeneratingWord = false;
-    }
-  }
-
-  showLoadingState() {
-    this.elements.wordDisplay.innerHTML =
-      '<div class="loading-spinner"></div><span>Generating...</span>';
-    this.elements.tabooWords.innerHTML = '<div class="loading-spinner"></div>';
-  }
-
-  displayWord() {
-    this.elements.wordDisplay.textContent = this.gameState.currentWord;
-
-    this.elements.tabooWords.innerHTML = "";
-    this.gameState.tabooWords.forEach((word, index) => {
-      const tabooElement = document.createElement("div");
-      tabooElement.className = "taboo-word";
-      tabooElement.textContent = word;
-      tabooElement.style.animationDelay = `${index * 0.1}s`;
-      this.elements.tabooWords.appendChild(tabooElement);
-    });
-  }
-
-  startTimer() {
-    if (this.gameState.timer) {
-      clearInterval(this.gameState.timer);
-    }
-
-    this.gameState.timer = setInterval(() => {
-      if (this.gameState.isPaused) return;
-
-      this.gameState.timeLeft--;
-      this.updateTimerDisplay();
-
-      if (this.gameState.timeLeft <= 0) {
-        this.endRound();
-      }
-    }, 1000);
-  }
-
-  updateTimerDisplay() {
-    this.elements.timerDisplay.textContent = this.gameState.timeLeft;
-
-    // Update circular progress
-    const progress = (this.gameState.timeLeft / this.gameState.totalTime) * 283;
-    this.elements.timerProgress.style.strokeDashoffset = 283 - progress;
-
-    // Change color based on time left
-    if (this.gameState.timeLeft <= 10) {
-      this.elements.timerProgress.style.stroke = "#ff4757";
-    } else if (this.gameState.timeLeft <= 30) {
-      this.elements.timerProgress.style.stroke = "#ffa502";
-    } else {
-      this.elements.timerProgress.style.stroke = "#667eea";
-    }
-  }
-
-  updatePlayersDisplay() {
-    this.elements.playersGrid.innerHTML = "";
-
-    this.gameState.players.forEach((player, index) => {
-      const playerCard = document.createElement("div");
-      playerCard.className = `player-card ${
-        index === this.gameState.currentPlayerIndex ? "active" : ""
-      }`;
-
-      const playerName = document.createElement("div");
-      playerName.className = "player-name";
-      playerName.textContent = player;
-
-      const playerScore = document.createElement("div");
-      playerScore.className = "player-score";
-      playerScore.textContent = this.gameState.scores[index];
-
-      playerCard.appendChild(playerName);
-      playerCard.appendChild(playerScore);
-      this.elements.playersGrid.appendChild(playerCard);
-    });
-  }
-
-  async handleCorrectGuess() {
-    if (this.gameState.isGeneratingWord) return;
-
-    this.gameState.scores[this.gameState.currentPlayerIndex]++;
-    this.updatePlayersDisplay();
-
-    // Add visual feedback
-    this.showFeedback("✅ Correct!", "success");
-
-    await this.generateNewWord();
-  }
-
-  async handlePassWord() {
-    if (this.gameState.isGeneratingWord) return;
-
-    this.showFeedback("⏭️ Passed", "warning");
-    await this.generateNewWord();
-  }
-
-  showFeedback(message, type) {
-    const feedback = document.createElement("div");
-    feedback.className = `feedback feedback-${type}`;
-    feedback.textContent = message;
-    feedback.style.cssText = `
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: var(--${type === "success" ? "success" : "warning"});
-            color: white;
-            padding: 1rem 2rem;
-            border-radius: 50px;
-            font-weight: 600;
-            z-index: 1000;
-            animation: feedbackPop 1s ease-out forwards;
-        `;
-
-    document.body.appendChild(feedback);
-    setTimeout(() => feedback.remove(), 1000);
-  }
-
-  togglePause() {
-    this.gameState.isPaused = !this.gameState.isPaused;
-
-    if (this.gameState.isPaused) {
-      this.elements.pauseModal.classList.remove("hidden");
-      this.elements.pauseButton.innerHTML =
-        '<span class="btn-icon">▶️</span>Resume';
-    } else {
-      this.elements.pauseModal.classList.add("hidden");
-      this.elements.pauseButton.innerHTML =
-        '<span class="btn-icon">⏸️</span>Pause';
-    }
-  }
-
-  endRound() {
-    clearInterval(this.gameState.timer);
-    this.elements.correctButton.disabled = true;
-    this.elements.passButton.disabled = true;
-    this.elements.pauseButton.disabled = true;
-    document.getElementById("roundControls").classList.remove("hidden");
-
-    this.showFeedback("⏰ Time's up!", "warning");
-  }
-
-  endGame() {
-    this.gameState.gameActive = false;
-    clearInterval(this.gameState.timer);
-    this.showResults();
-    this.showScreen("results");
-  }
-
-  showResults() {
-    // Create sorted results
-    const results = this.gameState.players
-      .map((player, index) => ({
-        name: player,
-        score: this.gameState.scores[index],
-      }))
-      .sort((a, b) => b.score - a.score);
-
-    // Show podium (top 3)
-    this.elements.podium.innerHTML = "";
-    const medals = ["🥇", "🥈", "🥉"];
-    const places = ["first", "second", "third"];
-
-    results.slice(0, 3).forEach((player, index) => {
-      const podiumPlace = document.createElement("div");
-      podiumPlace.className = `podium-place ${places[index]}`;
-
-      podiumPlace.innerHTML = `
-                <div class="podium-medal">${medals[index]}</div>
-                <div class="podium-step">
-                    <div class="podium-name">${player.name}</div>
-                    <div class="podium-score">${player.score}</div>
-                </div>
-            `;
-
-      this.elements.podium.appendChild(podiumPlace);
-    });
-
-    // Show all scores
-    this.elements.finalScores.innerHTML = `
-            <h4>Final Scores</h4>
-            ${results
-              .map(
-                (player, index) => `
-                <div style="display: flex; justify-content: space-between; margin: 0.5rem 0; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
-                    <span>${index + 1}. ${player.name}</span>
-                    <span style="font-weight: bold;">${
-                      player.score
-                    } points</span>
-                </div>
-            `
-              )
-              .join("")}
-        `;
-  }
-
-  playAgain() {
-    // Reset scores but keep players and settings
-    this.gameState.scores = new Array(this.gameState.players.length).fill(0);
-    this.gameState.currentRound = 0;
-    this.gameState.currentPlayerIndex = -1;
-    this.gameState.wordsUsed = new Set();
-    this.startGame();
-  }
-
-  newGame() {
-    // Complete reset
-    this.gameState = {
-      players: [],
-      scores: [],
-      currentRound: 0,
-      totalRounds: 0,
-      currentPlayerIndex: 0,
-      currentWord: null,
-      tabooWords: [],
-      timer: null,
-      timeLeft: 60,
-      totalTime: 60,
-      wordsUsed: new Set(),
-      isGeneratingWord: false,
-      isPaused: false,
-      category: "general",
-      difficulty: "medium",
-      language: "english",
-      gameActive: false,
-    };
-
-    this.showScreen("start");
-  }
-
-  showError(message) {
-    const error = document.createElement("div");
-    error.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: var(--danger);
-            color: white;
-            padding: 1rem;
-            border-radius: var(--border-radius);
-            z-index: 1000;
-            animation: slideIn 0.3s ease-out;
-        `;
-    error.textContent = message;
-    document.body.appendChild(error);
-    setTimeout(() => error.remove(), 3000);
+    this.gameState.currentPlayerIndex = 0;
+    this.gameState.roundEnded = false;
+    await this.startTurn();
   }
 
   async fetchWordFromAI() {
@@ -601,7 +343,6 @@ class AIBannedWordsGame {
       difficultyMap[this.gameState.difficulty] || "medium difficulty";
     const usedWords = Array.from(this.gameState.wordsUsed);
 
-    // Create a unique seed for variety
     const seed = Math.random().toString(36).substring(2, 8);
 
     const prompt = `Generate a word for a Taboo-style guessing game in ${languagePrompt}.
@@ -636,7 +377,10 @@ Example format for English:
 
     try {
       const aiResponse = await this.callDeepSeek(prompt);
-      const result = this.parseAIResponse(aiResponse); // ✅ use parser here
+      const content = aiResponse.choices?.[0]?.message?.content;
+      if (!content) throw new Error("Empty response from AI");
+
+      const result = this.parseAIResponse(content);
 
       if (result && result.guess && result.taboo && result.taboo.length === 5) {
         return result;
@@ -649,6 +393,30 @@ Example format for English:
     }
   }
 
+  parseAIResponse(content) {
+    try {
+      let contentString;
+      if (typeof content === "string") {
+        contentString = content
+          .replace(/```json\s*/i, "")
+          .replace(/```\s*$/i, "")
+          .replace(/```/g, "")
+          .replace(/_/g, " ") // ← This line replaces underscores with spaces
+          .trim();
+      } else if (typeof content === "object") {
+        return this.cleanTabooData(content);
+      } else {
+        throw new Error("Invalid content type");
+      }
+
+      const parsed = JSON.parse(contentString);
+      return this.cleanTabooData(parsed);
+    } catch (error) {
+      console.error("Failed to parse AI response:", content, error);
+      throw new Error("Invalid AI response format");
+    }
+  }
+
   async callDeepSeek(prompt) {
     try {
       const response = await fetch("/api/deepseek", {
@@ -657,85 +425,447 @@ Example format for English:
         body: JSON.stringify({ prompt }),
       });
 
+      const responseText = await response.text();
+
       if (!response.ok) {
-        try {
-          // First try to parse as JSON
-          const error = await response.json();
-          throw new Error(error.error || "API Error");
-        } catch {
-          // Fallback to text if not JSON
-          const text = await response.text();
-          throw new Error(text || "Request failed");
-        }
+        throw new Error(responseText || "API request failed");
       }
 
-      return await response.json();
+      try {
+        return JSON.parse(responseText);
+      } catch (parseError) {
+        throw new Error("Invalid JSON response");
+      }
     } catch (error) {
       console.error("API Error:", error);
-      alert(`Game error: ${error.message}`);
+
+      const errorMessage =
+        error.message.length > 100
+          ? "Service unavailable, please try again later"
+          : error.message;
+
+      this.showError(errorMessage);
       throw error;
     }
   }
 
-  parseAIResponse(content) {
-    try {
-      // Clean up the response - remove markdown code blocks if present
-      const cleanContent = content
-        .replace(/```json\s*/i, "")
-        .replace(/```\s*$/i, "")
-        .replace(/```/g, "")
-        .trim();
+  async startTurn() {
+    this.elements.roundDisplay.textContent = `Round ${this.gameState.currentRound} of ${this.gameState.totalRounds}`;
+    this.elements.currentPlayerName.textContent =
+      this.gameState.players[this.gameState.currentPlayerIndex];
 
-      const parsed = JSON.parse(cleanContent);
+    this.elements.correctButton.disabled = false;
+    this.elements.passButton.disabled = false;
+    this.elements.pauseButton.disabled = false;
+    document.getElementById("roundControls").classList.add("hidden");
 
-      // Validate the response
-      if (!parsed.guess || typeof parsed.guess !== "string") {
-        throw new Error("Invalid guess word");
-      }
+    this.gameState.timeLeft = this.gameState.totalTime;
+    this.updateTimerDisplay();
 
-      if (!Array.isArray(parsed.taboo) || parsed.taboo.length !== 5) {
-        throw new Error("Invalid taboo words array");
-      }
+    this.gameState.currentSkips = this.gameState.skipsPerRound;
+    this.updateSkipsDisplay();
 
-      // Ensure guess is uppercase and clean
-      parsed.guess = parsed.guess.toUpperCase().trim();
+    this.updatePlayersDisplay();
+    await this.generateNewWord();
+    this.startTimer();
+  }
 
-      // Ensure taboo words are clean
-      parsed.taboo = parsed.taboo
-        .map((word) =>
-          typeof word === "string" ? word.toLowerCase().trim() : ""
-        )
-        .filter((word) => word.length > 0);
+  async endTurn() {
+    this.gameState.currentTurn++;
+    this.gameState.currentPlayerIndex =
+      (this.gameState.currentPlayerIndex + 1) % this.gameState.players.length;
 
-      if (parsed.taboo.length !== 5) {
-        throw new Error("Not enough valid taboo words");
-      }
-
-      return parsed;
-    } catch (error) {
-      console.error("Failed to parse AI response:", content, error);
-      throw new Error("Invalid AI response format");
+    if (this.gameState.currentTurn >= this.gameState.players.length) {
+      this.endRound();
+    } else {
+      await this.startTurn();
     }
+  }
+
+  async generateNewWord() {
+    this.pauseTimer();
+    this.gameState.isGeneratingWord = true;
+    this.showLoadingState();
+
+    try {
+      this.fadeOutCurrentWord();
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const wordData = await this.fetchWordFromAI();
+      this.gameState.currentWord = wordData.guess;
+      this.gameState.tabooWords = wordData.taboo;
+      this.gameState.wordsUsed.add(wordData.guess);
+
+      this.displayWord();
+    } catch (error) {
+      console.error("Failed to generate word:", error);
+      this.showError(`Failed to generate word: ${error.message}`);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      return this.generateNewWord();
+    } finally {
+      this.gameState.isGeneratingWord = false;
+      if (!this.gameState.roundEnded) {
+        this.resumeTimer();
+      }
+    }
+  }
+
+  updateSkipsDisplay() {
+    if (this.gameState.currentSkips === Infinity) {
+      this.elements.skipsCounter.textContent = "∞";
+      this.elements.passButton.disabled = false;
+    } else {
+      this.elements.skipsCounter.textContent = this.gameState.currentSkips;
+      this.elements.passButton.disabled = this.gameState.currentSkips <= 0;
+    }
+  }
+
+  cleanTabooData(data) {
+    if (!data.guess || typeof data.guess !== "string") {
+      throw new Error("Invalid guess word");
+    }
+
+    if (!Array.isArray(data.taboo) || data.taboo.length !== 5) {
+      throw new Error("Invalid taboo words array");
+    }
+
+    data.guess = data.guess.toUpperCase().trim();
+
+    data.taboo = data.taboo
+      .map((word) =>
+        typeof word === "string" ? word.toLowerCase().trim() : ""
+      )
+      .filter((word) => word.length > 0);
+
+    if (data.taboo.length !== 5) {
+      throw new Error("Not enough valid taboo words");
+    }
+
+    return data;
+  }
+
+  fadeOutCurrentWord() {
+    if (this.elements.wordDisplay.textContent) {
+      this.elements.wordDisplay.style.transition = "opacity 0.3s ease";
+      this.elements.wordDisplay.style.opacity = 0;
+
+      this.elements.tabooWords.style.transition = "opacity 0.3s ease";
+      this.elements.tabooWords.style.opacity = 0;
+    }
+  }
+
+  displayWord() {
+    this.elements.wordDisplay.style.opacity = 1;
+    this.elements.tabooWords.style.opacity = 1;
+
+    this.elements.wordDisplay.textContent = this.gameState.currentWord;
+
+    this.elements.tabooWords.innerHTML = "";
+    this.gameState.tabooWords.forEach((word, index) => {
+      const tabooElement = document.createElement("div");
+      tabooElement.className = "taboo-word";
+      tabooElement.textContent = word;
+      tabooElement.style.animationDelay = `${index * 0.1}s`;
+      this.elements.tabooWords.appendChild(tabooElement);
+    });
+  }
+
+  showLoadingState() {
+    this.elements.wordDisplay.innerHTML =
+      '<div class="loading-spinner"></div><span>Generating word...</span>';
+    this.elements.tabooWords.innerHTML = '<div class="loading-spinner"></div>';
+  }
+
+  pauseTimer() {
+    if (this.gameState.timer) {
+      clearInterval(this.gameState.timer);
+      this.gameState.timer = null;
+    }
+  }
+
+  resumeTimer() {
+    if (!this.gameState.isPaused && !this.gameState.roundEnded) {
+      this.startTimer();
+    }
+  }
+
+  startTimer() {
+    this.pauseTimer();
+
+    this.gameState.timer = setInterval(() => {
+      if (this.gameState.isPaused || this.gameState.isGeneratingWord) return;
+
+      this.gameState.timeLeft--;
+      this.updateTimerDisplay();
+
+      if (this.gameState.timeLeft <= 0) {
+        this.endTurn();
+      }
+    }, 1000);
+  }
+
+  updateTimerDisplay() {
+    this.elements.timerDisplay.textContent = this.gameState.timeLeft;
+
+    const progress = (this.gameState.timeLeft / this.gameState.totalTime) * 283;
+    this.elements.timerProgress.style.strokeDashoffset = 283 - progress;
+
+    if (this.gameState.timeLeft <= 10) {
+      this.elements.timerProgress.style.stroke = "#ff4757";
+    } else if (this.gameState.timeLeft <= 30) {
+      this.elements.timerProgress.style.stroke = "#ffa502";
+    } else {
+      this.elements.timerProgress.style.stroke = "#667eea";
+    }
+  }
+
+  updatePlayersDisplay() {
+    this.elements.playersGrid.innerHTML = "";
+
+    this.gameState.players.forEach((player, index) => {
+      const playerCard = document.createElement("div");
+      playerCard.className = `player-card ${
+        index === this.gameState.currentPlayerIndex ? "active" : ""
+      }`;
+
+      const playerName = document.createElement("div");
+      playerName.className = "player-name";
+      playerName.textContent = player;
+
+      const playerScore = document.createElement("div");
+      playerScore.className = "player-score";
+      playerScore.textContent = this.gameState.scores[index];
+
+      playerCard.appendChild(playerName);
+      playerCard.appendChild(playerScore);
+      this.elements.playersGrid.appendChild(playerCard);
+    });
+  }
+
+  async handleCorrectGuess() {
+    if (this.gameState.isGeneratingWord) return;
+
+    this.gameState.scores[this.gameState.currentPlayerIndex]++;
+    this.updatePlayersDisplay();
+
+    this.showFeedback("✅ Correct!", "success");
+    await this.generateNewWord();
+  }
+
+  async handlePassWord() {
+    if (this.gameState.isGeneratingWord) return;
+
+    // Check if player has skips left
+    if (
+      this.gameState.currentSkips <= 0 &&
+      this.gameState.skipsPerRound !== Infinity
+    ) {
+      this.showFeedback("⚠️ No skips left!", "warning");
+      return;
+    }
+
+    // Decrement skips if not unlimited
+    if (this.gameState.skipsPerRound !== Infinity) {
+      this.gameState.currentSkips--;
+      this.updateSkipsDisplay();
+    }
+
+    this.showFeedback("⏭️ Passed", "warning");
+    await this.generateNewWord();
+  }
+
+  showFeedback(message, type) {
+    const feedback = document.createElement("div");
+    feedback.className = `feedback feedback-${type}`;
+    feedback.textContent = message;
+    feedback.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: ${type === "success" ? "#00b09b" : "#ff9a00"};
+                    color: white;
+                    padding: 1rem 2rem;
+                    border-radius: 50px;
+                    font-weight: 600;
+                    z-index: 1000;
+                    animation: feedbackPop 1s ease-out forwards;
+                `;
+
+    document.body.appendChild(feedback);
+    setTimeout(() => feedback.remove(), 1000);
+  }
+
+  togglePause() {
+    this.gameState.isPaused = !this.gameState.isPaused;
+
+    if (this.gameState.isPaused) {
+      this.elements.pauseModal.classList.remove("hidden");
+      this.elements.pauseButton.innerHTML =
+        '<i class="fas fa-play btn-icon"></i>Resume';
+      this.pauseTimer();
+    } else {
+      this.elements.pauseModal.classList.add("hidden");
+      this.elements.pauseButton.innerHTML =
+        '<i class="fas fa-pause btn-icon"></i>Pause';
+      if (!this.gameState.roundEnded) {
+        this.resumeTimer();
+      }
+    }
+  }
+
+  endRound() {
+    this.pauseTimer();
+    this.gameState.roundEnded = true;
+
+    this.elements.correctButton.disabled = true;
+    this.elements.passButton.disabled = true;
+    this.elements.pauseButton.disabled = true;
+    document.getElementById("roundControls").classList.remove("hidden");
+
+    this.showFeedback("⏰ Round complete!", "warning");
+  }
+
+  endGame() {
+    this.gameState.gameActive = false;
+    this.pauseTimer();
+    this.showResults();
+    this.showScreen("results");
+  }
+
+  showResults() {
+    const results = this.gameState.players
+      .map((player, index) => ({
+        name: player,
+        score: this.gameState.scores[index],
+      }))
+      .sort((a, b) => b.score - a.score);
+
+    this.elements.podium.innerHTML = "";
+    const medals = ["🥇", "🥈", "🥉"];
+    const places = ["first", "second", "third"];
+
+    results.slice(0, 3).forEach((player, index) => {
+      const podiumPlace = document.createElement("div");
+      podiumPlace.className = `podium-place ${places[index]}`;
+
+      podiumPlace.innerHTML = `
+                        <div class="podium-medal">${medals[index]}</div>
+                        <div class="podium-step ${places[index]}">
+                            <div class="podium-name">${player.name}</div>
+                            <div class="podium-score">${player.score}</div>
+                        </div>
+                    `;
+
+      this.elements.podium.appendChild(podiumPlace);
+    });
+
+    this.elements.finalScores.innerHTML = `
+                    <h4>Final Scores</h4>
+                    ${results
+                      .map(
+                        (player, index) => `
+                            <div style="display: flex; justify-content: space-between; margin: 0.5rem 0; padding: 0.5rem; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                                <span>${index + 1}. ${player.name}</span>
+                                <span style="font-weight: bold;">${
+                                  player.score
+                                } points</span>
+                            </div>
+                        `
+                      )
+                      .join("")}
+                `;
+  }
+
+  playAgain() {
+    this.gameState.scores = new Array(this.gameState.players.length).fill(0);
+    this.gameState.currentRound = 0;
+    this.gameState.currentPlayerIndex = -1;
+    this.gameState.wordsUsed = new Set();
+    this.startGame();
+  }
+
+  newGame() {
+    this.gameState = {
+      players: [],
+      scores: [],
+      currentRound: 0,
+      totalRounds: 0,
+      currentPlayerIndex: 0,
+      currentWord: null,
+      tabooWords: [],
+      timer: null,
+      timeLeft: 60,
+      totalTime: 60,
+      wordsUsed: new Set(),
+      isGeneratingWord: false,
+      isPaused: false,
+      category: "general",
+      difficulty: "medium",
+      language: "english",
+      gameActive: false,
+      currentTurn: 0,
+      roundEnded: false,
+    };
+
+    this.showScreen("start");
+  }
+
+  showError(message) {
+    const error = document.createElement("div");
+    error.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #ff4757;
+                    color: white;
+                    padding: 1rem;
+                    border-radius: 8px;
+                    z-index: 1000;
+                    animation: slideIn 0.3s ease-out;
+                `;
+    error.textContent = message;
+    document.body.appendChild(error);
+    setTimeout(() => error.remove(), 3000);
   }
 }
 
-// Add CSS animations
 const style = document.createElement("style");
 style.textContent = `
-    @keyframes feedbackPop {
-        0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-        50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
-        100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
-    }
+            @keyframes feedbackPop {
+                0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+                50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+                100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+            }
 
-    @keyframes slideIn {
-        from { transform: translateX(100%); }
-        to { transform: translateX(0); }
-    }
-`;
+            @keyframes slideIn {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
+            }
+
+            #wordDisplay, #tabooWords {
+                transition: opacity 0.3s ease;
+            }
+
+            #pauseModal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                background: rgba(0, 0, 0, 0.7);
+                z-index: 1000;
+            }
+
+            #pauseModal.hidden {
+                display: none;
+            }
+        `;
 document.head.appendChild(style);
 
-// Initialize the game when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
   new AIBannedWordsGame();
 });

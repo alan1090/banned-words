@@ -1,724 +1,323 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Banned Words Game</title>
-    <link rel="stylesheet" href="styles.css">
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      }
-
-      body {
-        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-        min-height: 100vh;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 20px;
-        color: #333;
-      }
-
-      .container {
-        background-color: rgba(255, 255, 255, 0.95);
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        width: 100%;
-        max-width: 800px;
-        padding: 30px;
-        text-align: center;
-      }
-
-      .game-header {
-        margin-bottom: 20px;
-      }
-
-      .game-title {
-        color: #2c3e50;
-        margin-bottom: 20px;
-        font-size: 2.8rem;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
-        background: linear-gradient(45deg, #2575fc, #6a11cb);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-      }
-
-      .title-icon, .title-subtitle {
-        margin: 0 10px;
-      }
-
-      .screen {
-        display: none;
-      }
-
-      .screen.active {
-        display: block;
-      }
-
-      .welcome-card, .settings-card, .players-card, .results-card {
-        background-color: #f8f9fa;
-        border-radius: 15px;
-        padding: 25px;
-        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
-      }
-
-      .game-description {
-        margin-bottom: 20px;
-      }
-
-      .instructions {
-        margin-bottom: 20px;
-      }
-
-      .instruction-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
-      }
-
-      .instruction-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .instruction-icon {
-        font-size: 1.5rem;
-      }
-
-      .btn {
-        padding: 15px 30px;
-        border: none;
-        border-radius: 50px;
-        font-size: 1.1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .btn-icon {
-        font-size: 1.2rem;
-      }
-
-      .btn-primary {
-        background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
-        color: white;
-      }
-
-      .btn-success {
-        background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%);
-        color: white;
-      }
-
-      .btn-warning {
-        background: linear-gradient(135deg, #ff9a00 0%, #ff5e00 100%);
-        color: white;
-      }
-
-      .btn-secondary {
-        background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-        color: white;
-      }
-
-      .btn-danger {
-        background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
-        color: white;
-      }
-
-      .btn:hover:not(:disabled) {
-        transform: translateY(-3px);
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
-      }
-
-      .btn:active:not(:disabled) {
-        transform: translateY(1px);
-      }
-
-      .players-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 20px;
-        margin-bottom: 20px;
-      }
-
-      .player-card {
-        background: linear-gradient(135deg, #00c9ff 0%, #92fe9d 100%);
-        color: #2c3e50;
-        padding: 15px 25px;
-        border-radius: 15px;
-        font-weight: 600;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-        min-width: 180px;
-        position: relative;
-        transition: all 0.3s ease;
-      }
-
-      .player-card.active {
-        background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
-        transform: scale(1.05);
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-        z-index: 10;
-      }
-
-      .player-card.active::after {
-        content: "👑";
-        position: absolute;
-        top: -10px;
-        right: -10px;
-        font-size: 1.5rem;
-        background: gold;
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
-      }
-
-      .player-name {
-        font-size: 1.3rem;
-        margin-bottom: 5px;
-        font-weight: 700;
-      }
-
-      .player-score {
-        font-size: 2rem;
-        font-weight: 800;
-      }
-
-      .form-row {
-        display: flex;
-        justify-content: space-between;
-        gap: 20px;
-      }
-
-      .form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      label {
-        font-weight: 600;
-        color: #2c3e50;
-        font-size: 1.1rem;
-      }
-
-      input {
-        padding: 14px;
-        border: 2px solid #e0e0e0;
-        border-radius: 10px;
-        font-size: 1.1rem;
-        transition: all 0.3s;
-      }
-
-      input:focus {
-        border-color: #2575fc;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(37, 117, 252, 0.2);
-      }
-
-      .word-card {
-        background-color: white;
-        border-radius: 15px;
-        padding: 30px;
-        margin: 25px 0;
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-        transition: transform 0.3s ease;
-      }
-
-      .word-card:hover {
-        transform: translateY(-5px);
-      }
-
-      .word-display {
-        font-size: 3.5rem;
-        font-weight: 800;
-        color: #2c3e50;
-        margin: 20px 0;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
-        background: linear-gradient(45deg, #2575fc, #6a11cb);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-      }
-
-      .taboo-container {
-        margin-top: 20px;
-      }
-
-      .taboo-words {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 15px;
-        margin: 30px 0;
-      }
-
-      .taboo-word {
-        background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
-        color: white;
-        padding: 12px 25px;
-        border-radius: 50px;
-        font-weight: 600;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-        animation: pulse 2s infinite;
-        font-size: 1.2rem;
-      }
-
-      @keyframes pulse {
-        0% {
-          transform: scale(1);
-        }
-        50% {
-          transform: scale(1.05);
-        }
-        100% {
-          transform: scale(1);
-        }
-      }
-
-      .timer-container {
-        background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
-        color: white;
-        border-radius: 50px;
-        padding: 15px 30px;
-        font-size: 1.8rem;
-        font-weight: 700;
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        margin: 20px 0;
-        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-      }
-
-      .timer-circle {
-        position: relative;
-        width: 100px;
-        height: 100px;
-        margin: 0 auto;
-      }
-
-      .timer-svg {
-        width: 100%;
-        height: 100%;
-      }
-
-      .timer-bg {
-        fill: #e0e0e0;
-      }
-
-      .timer-progress {
-        fill: transparent;
-        stroke: #fff;
-        stroke-width: 10;
-        stroke-linecap: round;
-        stroke-dasharray: 282.74;
-        stroke-dashoffset: 282.74;
-        animation: countdown 60s linear forwards;
-      }
-
-      @keyframes countdown {
-        to {
-          stroke-dashoffset: 0;
-        }
-      }
-
-      .timer-text {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 1.8rem;
-        font-weight: bold;
-      }
-
-      .game-controls {
-        display: flex;
-        justify-content: center;
-        gap: 20px;
-        margin: 25px 0;
-        flex-wrap: wrap;
-      }
-
-      .round-controls {
-        display: flex;
-        justify-content: center;
-        gap: 20px;
-        margin: 25px 0;
-        flex-wrap: wrap;
-      }
-
-      .results-card {
-        background-color: #f8f9fa;
-        border-radius: 15px;
-        padding: 25px;
-        margin: 25px 0;
-        text-align: left;
-        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.05);
-      }
-
-      .podium {
-        margin-bottom: 20px;
-      }
-
-      .final-scores {
-        margin-bottom: 20px;
-      }
-
-      .results-actions {
-        display: flex;
-        justify-content: center;
-        gap: 20px;
-      }
-
-      .modal {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-
-      .modal-content {
-        background-color: #fff;
-        border-radius: 15px;
-        padding: 25px;
-        text-align: center;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-        width: 80%;
-        max-width: 400px;
-      }
-
-      .modal-actions {
-        display: flex;
-        justify-content: center;
-        gap: 20px;
-        margin-top: 20px;
-      }
-
-      .loading-spinner {
-        border: 4px solid rgba(255, 255, 255, 0.3);
-        border-top-color: #fff;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        animation: spin 1s ease-in-out infinite;
-        margin: 20px auto;
-      }
-
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-
-      .ai-generated-badge {
-        background: linear-gradient(45deg, #2575fc, #6a11cb);
-        color: white;
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-size: 0.9rem;
-        display: inline-block;
-        margin-top: 15px;
-        font-weight: 600;
-      }
-
-      .winner-badge {
-        position: absolute;
-        top: -15px;
-        right: -15px;
-        background: gold;
-        color: #2c3e50;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-        transform: rotate(25deg);
-      }
-
-      @media (max-width: 600px) {
-        .word-display {
-          font-size: 2.5rem;
-        }
-
-        .timer-container {
-          font-size: 1.4rem;
-          padding: 12px 20px;
-        }
-
-        .timer {
-          font-size: 1.8rem;
-        }
-
-        button {
-          padding: 12px 20px;
-          font-size: 1rem;
-          width: 100%;
-        }
-
-        .buttons {
-          flex-direction: column;
-          gap: 12px;
-        }
-
-        .player-card {
-          padding: 12px 20px;
-          min-width: 140px;
-        }
-
-        .game-title {
-          font-size: 2.2rem;
-        }
-      }
-    </style>
-</head>
-<body>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+    />
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+  </head>
+  <body>
     <div class="container">
-        <header class="game-header">
-            <h1 class="game-title">
-                <span class="title-icon">🎯</span>
-                AI Banned Words
-                <span class="title-subtitle">Game</span>
-            </h1>
-        </header>
+      <header class="game-header">
+        <span class="title-icon">🎯</span>
+        <h1 class="game-title">AI Banned Words Game</h1>
+      </header>
 
-        <!-- Start Screen -->
-        <div id="startScreen" class="screen active">
-            <div class="welcome-card">
-                <div class="game-description">
-                    <p>Describe the word without using any of the banned words - all generated by AI!</p>
-                </div>
+      <!-- Start Screen -->
+      <div id="startScreen" class="screen active">
+        <div class="welcome-card">
+          <div class="game-description">
+            <p>
+              Describe the word without using any of the banned words - all
+              generated by AI! Players take turns describing words while others
+              try to guess. The describer can't use any of the banned words.
+            </p>
+          </div>
 
-                <div class="instructions">
-                    <h3>🎮 How to Play</h3>
-                    <div class="instruction-grid">
-                        <div class="instruction-item">
-                            <span class="instruction-icon">👥</span>
-                            <span>Players take turns describing words</span>
-                        </div>
-                        <div class="instruction-item">
-                            <span class="instruction-icon">🚫</span>
-                            <span>Can't use banned words or parts of the target word</span>
-                        </div>
-                        <div class="instruction-item">
-                            <span class="instruction-icon">⏱️</span>
-                            <span>60 seconds per round - get as many as you can!</span>
-                        </div>
-                        <div class="instruction-item">
-                            <span class="instruction-icon">🤖</span>
-                            <span>All words generated by AI</span>
-                        </div>
-                    </div>
-                </div>
-
-                <button id="startGameButton" class="btn btn-primary btn-large">
-                    <span class="btn-icon">🚀</span>
-                    Start Game
-                </button>
+          <div class="instructions">
+            <h3><i class="fas fa-gamepad"></i> How to Play</h3>
+            <div class="instruction-grid">
+              <div class="instruction-item">
+                <span class="instruction-icon"
+                  ><i class="fas fa-users"></i
+                ></span>
+                <span>Players take turns describing words</span>
+              </div>
+              <div class="instruction-item">
+                <span class="instruction-icon"><i class="fas fa-ban"></i></span>
+                <span>Can't use banned words or parts of the target word</span>
+              </div>
+              <div class="instruction-item">
+                <span class="instruction-icon"
+                  ><i class="fas fa-clock"></i
+                ></span>
+                <span>Custom time per round - get as many as you can!</span>
+              </div>
+              <div class="instruction-item">
+                <span class="instruction-icon"
+                  ><i class="fas fa-robot"></i
+                ></span>
+                <span>All words generated by AI</span>
+              </div>
+              <!-- New instruction item -->
+              <div class="instruction-item">
+                <span class="instruction-icon"
+                  ><i class="fas fa-undo"></i
+                ></span>
+                <span>Limited skips per round - use them wisely!</span>
+              </div>
             </div>
+          </div>
+
+          <button id="startGameButton" class="btn btn-primary btn-large">
+            <i class="fas fa-play btn-icon"></i>
+            Start Game
+          </button>
+        </div>
+      </div>
+
+      <!-- Settings Screen -->
+      <div id="settingsScreen" class="screen">
+        <div class="settings-card">
+          <h2><i class="fas fa-cog"></i> Game Setup</h2>
+          <form id="settingsForm" class="settings-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="numberOfPlayers"
+                  ><i class="fas fa-users"></i> Players</label
+                >
+                <input
+                  type="number"
+                  id="numberOfPlayers"
+                  min="2"
+                  max="8"
+                  value="3"
+                />
+              </div>
+              <div class="form-group">
+                <label for="numberOfRounds"
+                  ><i class="fas fa-sync-alt"></i> Rounds</label
+                >
+                <input
+                  type="number"
+                  id="numberOfRounds"
+                  min="1"
+                  max="10"
+                  value="3"
+                />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="timePerRound"
+                  ><i class="fas fa-clock"></i> Time per Round (sec)</label
+                >
+                <input
+                  type="number"
+                  id="timePerRound"
+                  min="30"
+                  max="180"
+                  value="60"
+                />
+                <div class="time-options">
+                  <div class="time-option" data-time="30">30s</div>
+                  <div class="time-option active" data-time="60">60s</div>
+                  <div class="time-option" data-time="90">90s</div>
+                  <div class="time-option" data-time="120">120s</div>
+                </div>
+              </div>
+              <!-- NEW SETTING: Skips per round -->
+              <div class="form-group">
+                <label for="skipsPerRound"
+                  ><i class="fas fa-forward"></i> Skips per Round</label
+                >
+                <input
+                  type="number"
+                  id="skipsPerRound"
+                  min="0"
+                  max="10"
+                  value="3"
+                />
+                <div class="skip-options">
+                  <div class="skip-option" data-skips="0">0</div>
+                  <div class="skip-option active" data-skips="3">3</div>
+                  <div class="skip-option" data-skips="5">5</div>
+                  <div class="skip-option" data-skips="10">Unlimited</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="category"
+                  ><i class="fas fa-folder"></i> Category</label
+                >
+                <select id="category">
+                  <option value="general">🎲 General</option>
+                  <option value="animals">🐾 Animals</option>
+                  <option value="cinema">🎬 Cinema</option>
+                  <option value="sports">⚽ Sports</option>
+                  <option value="food">🍕 Food & Drink</option>
+                  <option value="geography">🌍 Geography</option>
+                  <option value="history">📚 History</option>
+                  <option value="science">🔬 Science</option>
+                  <option value="technology">💻 Technology</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="difficulty"
+                  ><i class="fas fa-bolt"></i> Difficulty</label
+                >
+                <select id="difficulty">
+                  <option value="easy">😊 Easy</option>
+                  <option value="medium" selected>😐 Medium</option>
+                  <option value="hard">😤 Hard</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="language"
+                  ><i class="fas fa-globe"></i> Language</label
+                >
+                <select id="language">
+                  <option value="english">🇺🇸 English</option>
+                  <option value="spanish">🇪🇸 Español</option>
+                  <option value="french">🇫🇷 Français</option>
+                  <option value="german">🇩🇪 Deutsch</option>
+                  <option value="italian">🇮🇹 Italiano</option>
+                  <option value="portuguese">🇵🇹 Português</option>
+                  <option value="dutch">🇳🇱 Nederlands</option>
+                  <option value="russian">🇷🇺 Русский</option>
+                  <option value="chinese">🇨🇳 中文</option>
+                  <option value="japanese">🇯🇵 日本語</option>
+                  <option value="korean">🇰🇷 한국어</option>
+                  <option value="arabic">🇸🇦 العربية</option>
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-large">
+              <i class="fas fa-arrow-right btn-icon"></i>
+              Continue
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Player Names Screen -->
+      <div id="playersScreen" class="screen">
+        <div class="players-card">
+          <h2><i class="fas fa-user-edit"></i> Enter Player Names</h2>
+          <form id="playersForm" class="players-form"></form>
+        </div>
+      </div>
+
+      <!-- Game Screen -->
+      <div id="gameScreen" class="screen">
+        <div class="game-status">
+          <div class="round-info">
+            <span id="roundDisplay">Round 1 of 3</span>
+          </div>
+          <div class="turn-indicator" id="turnIndicator">
+            <i class="fas fa-crown"></i>
+            <span id="currentPlayerName">Player 1</span>'s Turn
+          </div>
         </div>
 
-        <!-- Settings Screen -->
-        <div id="settingsScreen" class="screen">
-            <div class="settings-card">
-                <h2>🎛️ Game Setup</h2>
-                <form id="settingsForm" class="settings-form">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="numberOfPlayers">👥 Players</label>
-                            <input type="number" id="numberOfPlayers" min="2" max="8" value="3">
-                        </div>
-                        <div class="form-group">
-                            <label for="numberOfRounds">🔄 Rounds</label>
-                            <input type="number" id="numberOfRounds" min="1" max="10" value="3">
-                        </div>
-                    </div>
+        <div class="players-grid" id="playersGrid"></div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="category">📂 Category</label>
-                            <select id="category">
-                                <option value="general">🎲 General</option>
-                                <option value="animals">🐾 Animals</option>
-                                <option value="cinema">🎬 Cinema</option>
-                                <option value="sports">⚽ Sports</option>
-                                <option value="food">🍕 Food & Drink</option>
-                                <option value="geography">🌍 Geography</option>
-                                <option value="history">📚 History</option>
-                                <option value="science">🔬 Science</option>
-                                <option value="technology">💻 Technology</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="difficulty">⚡ Difficulty</label>
-                            <select id="difficulty">
-                                <option value="easy">😊 Easy</option>
-                                <option value="medium" selected>😐 Medium</option>
-                                <option value="hard">😤 Hard</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                          <label for="language">🌍 Language</label>
-                          <select id="language">
-                            <option value="english">🇺🇸 English</option>
-                            <option value="spanish">🇪🇸 Español</option>
-                            <option value="french">🇫🇷 Français</option>
-                            <option value="german">🇩🇪 Deutsch</option>
-                            <option value="italian">🇮🇹 Italiano</option>
-                            <option value="portuguese">🇵🇹 Português</option>
-                            <option value="dutch">🇳🇱 Nederlands</option>
-                            <option value="russian">🇷🇺 Русский</option>
-                            <option value="chinese">🇨🇳 中文</option>
-                            <option value="japanese">🇯🇵 日本語</option>
-                            <option value="korean">🇰🇷 한국어</option>
-                            <option value="arabic">🇸🇦 العربية</option>
-                          </select>
-                        </div>
-                    </div>
+        <div class="word-card">
+          <div class="word-display" id="wordDisplay">
+            <div class="loading-spinner"></div>
+            <span>Loading...</span>
+          </div>
 
-                    <button type="submit" class="btn btn-primary btn-large">
-                        <span class="btn-icon">➡️</span>
-                        Continue
-                    </button>
-                </form>
+          <div class="taboo-container">
+            <h4><i class="fas fa-ban"></i> Banned Words</h4>
+            <div class="taboo-words" id="tabooWords">
+              <div class="loading-spinner"></div>
             </div>
+          </div>
         </div>
 
-        <!-- Player Names Screen -->
-        <div id="playersScreen" class="screen">
-            <div class="players-card">
-                <h2>✏️ Enter Player Names</h2>
-                <form id="playersForm" class="players-form"></form>
+        <div class="timer-container">
+          <div class="timer-circle">
+            <svg class="timer-svg" viewBox="0 0 100 100">
+              <circle class="timer-bg" cx="50" cy="50" r="45"></circle>
+              <circle
+                class="timer-progress"
+                id="timerProgress"
+                cx="50"
+                cy="50"
+                r="45"
+              ></circle>
+            </svg>
+            <div class="timer-text">
+              <span id="timerDisplay">60</span>
+              <small>sec</small>
             </div>
+          </div>
         </div>
 
-        <!-- Game Screen -->
-        <div id="gameScreen" class="screen">
-            <div class="game-status">
-                <div class="round-info">
-                    <span id="roundDisplay">Round 1 of 3</span>
-                </div>
-                <div class="turn-indicator" id="turnIndicator">
-                    <span class="turn-crown">👑</span>
-                    <span id="currentPlayerName">Player 1</span>'s Turn
-                </div>
-            </div>
-
-            <div class="players-grid" id="playersGrid"></div>
-
-            <div class="word-card">
-                <div class="word-display" id="wordDisplay">
-                    <div class="loading-spinner"></div>
-                    <span>Loading...</span>
-                </div>
-
-                <div class="taboo-container">
-                    <h4>🚫 Banned Words</h4>
-                    <div class="taboo-words" id="tabooWords">
-                        <div class="loading-spinner"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="timer-container">
-                <div class="timer-circle">
-                    <svg class="timer-svg" viewBox="0 0 100 100">
-                        <circle class="timer-bg" cx="50" cy="50" r="45"></circle>
-                        <circle class="timer-progress" id="timerProgress" cx="50" cy="50" r="45"></circle>
-                    </svg>
-                    <div class="timer-text">
-                        <span id="timerDisplay">60</span>
-                        <small>sec</small>
-                    </div>
-                </div>
-            </div>
-
-            <div class="game-controls">
-                <button id="correctButton" class="btn btn-success">
-                    <span class="btn-icon">✅</span>
-                    Correct
-                </button>
-                <button id="passButton" class="btn btn-warning">
-                    <span class="btn-icon">⏭️</span>
-                    Pass
-                </button>
-                <button id="pauseButton" class="btn btn-secondary">
-                    <span class="btn-icon">⏸️</span>
-                    Pause
-                </button>
-            </div>
-
-            <div class="round-controls hidden" id="roundControls">
-                <button id="nextRoundButton" class="btn btn-primary btn-large">
-                    <span class="btn-icon">▶️</span>
-                    Next Round
-                </button>
-                <button id="endGameButton" class="btn btn-danger">
-                    <span class="btn-icon">🏁</span>
-                    End Game
-                </button>
-            </div>
+        <div class="game-controls">
+          <button id="correctButton" class="btn btn-success">
+            <i class="fas fa-check btn-icon"></i>
+            Correct
+          </button>
+          <button id="passButton" class="btn btn-warning">
+            <i class="fas fa-forward btn-icon"></i>
+            Pass (<span id="skipsCounter">3</span> left)
+          </button>
+          <button id="pauseButton" class="btn btn-secondary">
+            <i class="fas fa-pause btn-icon"></i>
+            Pause
+          </button>
         </div>
 
-        <!-- Results Screen -->
-        <div id="resultsScreen" class="screen">
-            <div class="results-card">
-                <h2>🏆 Game Results</h2>
-                <div class="podium" id="podium"></div>
-                <div class="final-scores" id="finalScores"></div>
-                <div class="results-actions">
-                    <button id="playAgainButton" class="btn btn-primary btn-large">
-                        <span class="btn-icon">🔄</span>
-                        Play Again
-                    </button>
-                    <button id="newGameButton" class="btn btn-secondary">
-                        <span class="btn-icon">🆕</span>
-                        New Game
-                    </button>
-                </div>
-            </div>
+        <div class="round-controls hidden" id="roundControls">
+          <button id="nextRoundButton" class="btn btn-primary btn-large">
+            <i class="fas fa-arrow-right btn-icon"></i>
+            Next Round
+          </button>
+          <button id="endGameButton" class="btn btn-danger">
+            <i class="fas fa-flag-checkered btn-icon"></i>
+            End Game
+          </button>
         </div>
+      </div>
 
-        <!-- Pause Modal -->
-        <div id="pauseModal" class="modal hidden">
-            <div class="modal-content">
-                <h3>⏸️ Game Paused</h3>
-                <p>Take a break! Resume when you're ready.</p>
-                <div class="modal-actions">
-                    <button id="resumeButton" class="btn btn-primary">
-                        <span class="btn-icon">▶️</span>
-                        Resume
-                    </button>
-                    <button id="quitButton" class="btn btn-danger">
-                        <span class="btn-icon">🚪</span>
-                        Quit Game
-                    </button>
-                </div>
-            </div>
+      <!-- Results Screen -->
+      <div id="resultsScreen" class="screen">
+        <div class="results-card">
+          <h2><i class="fas fa-trophy"></i> Game Results</h2>
+          <div class="podium" id="podium"></div>
+          <div class="final-scores" id="finalScores"></div>
+          <div class="results-actions">
+            <button id="playAgainButton" class="btn btn-primary btn-large">
+              <i class="fas fa-redo btn-icon"></i>
+              Play Again
+            </button>
+            <button id="newGameButton" class="btn btn-secondary">
+              <i class="fas fa-plus-circle btn-icon"></i>
+              New Game
+            </button>
+          </div>
         </div>
+      </div>
+
+      <!-- Pause Modal -->
+      <div id="pauseModal" class="modal hidden">
+        <div class="modal-content">
+          <h3><i class="fas fa-pause"></i> Game Paused</h3>
+          <p>Take a break! Resume when you're ready.</p>
+          <div class="modal-actions">
+            <button id="resumeButton" class="btn btn-primary">
+              <i class="fas fa-play btn-icon"></i>
+              Resume
+            </button>
+            <button id="quitButton" class="btn btn-danger">
+              <i class="fas fa-door-open btn-icon"></i>
+              Quit
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-<footer id="versionInfo"></footer>
-    <script src="./game.js" type="module"></script>
-</body>
+    <script src="game.js" type="module"></script>
+  </body>
 </html>
