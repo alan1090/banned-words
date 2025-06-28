@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.6";
+const APP_VERSION = "1.0.7";
 console.log(`[BannedWords] App Version: ${APP_VERSION}`);
 
 // In game.js (after DOMContentLoaded)
@@ -649,41 +649,33 @@ Example format for English:
     }
   }
 
-async callDeepSeek(prompt) {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+  async callDeepSeek(prompt) {
+    try {
+      const response = await fetch("/api/deepseek", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
 
-    const response = await fetch('/api/deepseek', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-      signal: controller.signal
-    });
+      if (!response.ok) {
+        try {
+          // First try to parse as JSON
+          const error = await response.json();
+          throw new Error(error.error || "API Error");
+        } catch {
+          // Fallback to text if not JSON
+          const text = await response.text();
+          throw new Error(text || "Request failed");
+        }
+      }
 
-    clearTimeout(timeout);
-
-    const data = await response.json();
-
-    if (data.status !== 'success') {
-      throw new Error(data.error || 'API request failed');
+      return await response.json();
+    } catch (error) {
+      console.error("API Error:", error);
+      alert(`Game error: ${error.message}`);
+      throw error;
     }
-
-    return data.result;
-
-  } catch (error) {
-    console.error('API Error:', error);
-    // Show user-friendly message based on error type
-    const message = error.message.includes('aborted')
-      ? 'Request timed out'
-      : error.message.includes('API key')
-        ? 'Server configuration error'
-        : 'Game service unavailable';
-
-    alert(`Error: ${message}. Please try again later.`);
-    throw error;
   }
-}
 
   parseAIResponse(content) {
     try {
