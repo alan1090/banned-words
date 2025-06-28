@@ -1,4 +1,4 @@
-const APP_VERSION = "1.0.5";
+const APP_VERSION = "1.0.6";
 console.log(`[BannedWords] App Version: ${APP_VERSION}`);
 
 // In game.js (after DOMContentLoaded)
@@ -649,35 +649,41 @@ Example format for English:
     }
   }
 
-  async callDeepSeek(prompt) {
-    try {
-      // Add timeout handling
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000); // 10-second timeout
+async callDeepSeek(prompt) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch("/api/deepseek", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-        signal: controller.signal,
-      });
+    const response = await fetch('/api/deepseek', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+      signal: controller.signal
+    });
 
-      clearTimeout(timeout);
+    clearTimeout(timeout);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`API error: ${response.status} - ${errorText}`);
-      }
+    const data = await response.json();
 
-      const data = await response.json();
-      return data.result;
-    } catch (error) {
-      if (error.name === "AbortError") {
-        throw new Error("API request timed out");
-      }
-      throw error;
+    if (data.status !== 'success') {
+      throw new Error(data.error || 'API request failed');
     }
+
+    return data.result;
+
+  } catch (error) {
+    console.error('API Error:', error);
+    // Show user-friendly message based on error type
+    const message = error.message.includes('aborted')
+      ? 'Request timed out'
+      : error.message.includes('API key')
+        ? 'Server configuration error'
+        : 'Game service unavailable';
+
+    alert(`Error: ${message}. Please try again later.`);
+    throw error;
   }
+}
 
   parseAIResponse(content) {
     try {
